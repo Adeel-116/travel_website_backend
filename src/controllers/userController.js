@@ -78,7 +78,6 @@ exports.verifyEmail = async (req, res) => {
     console.log(email)
     const db = getDB();
     const user = await db.collection("user-signup").findOne({ email });
-
     if (!user) return res.status(404).json({ message: "User not found" });
 
     const otp = generateOTP();
@@ -102,3 +101,10 @@ exports.verifyEmail = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
+
+
+
+exports.verifyOTP = async (req, res)=>{
+    const data = req.body
+    console.log(data)
+}
