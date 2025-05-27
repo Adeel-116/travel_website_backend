@@ -22,7 +22,11 @@ app.use(session({
   secret: 'Adeelkareem122',
   resave: false,
   saveUninitialized: false,
-  cookie: {maxAge: 5 * 60 * 1000}  //5 Min
+  cookie: {
+    secure: false,
+    httpOnly: true,
+    maxAge: 5 * 60 * 1000 // example: 5 minutes
+  }
 }))
 
 app.use('/', authRoutes);

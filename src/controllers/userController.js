@@ -110,19 +110,32 @@ exports.verifyEmail = async (req, res) => {
 
 
 exports.verifyOTP = async (req, res) => {
-  const data = req.body;
-  console.log('Received OTP:', data.otp);
 
-  if (!data.otp) {
+  console.log("This is verify Route")
+  const {otp} = req.body;
+  console.log('Received OTP:', otp);
+
+  console.log("This is session OTP ", req.session.otp)
+
+  if (!otp) {
     return res.status(400).json({ message: 'OTP is required' });
   }
 
-  // Just a placeholder for OTP validation logic
-  // For now, assume OTP is always '123456' for testing
+  if (!req.session.otp || !req.session.otpExpires) {
+    return res.status(404).json({ message: "OTP not found or expired. Please request again." });
+  }
 
-  if (data.otp === '123456') {
+  if (Date.now() > req.session.otpExpires) {
+    return res.status(410).json({ message: "OTP has expired. Please request again." });
+  }
+
+  if (otp === req.session.otp) {
+    req.session.isVerified = true;
+    req.session.otp = null;
+    req.session.otpExpires = null;
+
     return res.status(200).json({ message: 'OTP verified successfully' });
   } else {
-    return res.status(400).json({ message: 'Invalid OTP' });
+    return res.status(401).json({ message: 'Invalid OTP' });
   }
 };
