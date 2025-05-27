@@ -9,5 +9,6 @@ router.post('/login', authController.login);
 //   res.json({ user: req.user }); // Get user from decoded token
 // });
 router.post('/verify-email', authController.verifyEmail);
+router.post('/verify-otp', authController.verifyOTP);
 
 module.exports = router;

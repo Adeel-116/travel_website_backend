@@ -1,7 +1,6 @@
 const bcrypt = require("bcrypt");
 const { getDB } = require("../config/db");
-const jwtToken = require("jsonwebtoken");
-const cookiesParser = require("cookie-parser");
+const session = require("express-session")
 const transporter = require('../config/mailer');
 
 
@@ -91,6 +90,12 @@ exports.verifyEmail = async (req, res) => {
 
     try {
       await transporter.sendMail(mailOptions);
+
+      // 
+      req.session.otp = otp;
+      req.session.email = email;
+      req.session.otpExpires= Date.now() + 5 * 60 * 1000;
+
       res.status(200).send({ message: 'OTP sent successfully' });
     } catch (error) {
       console.error(error);
@@ -104,7 +109,20 @@ exports.verifyEmail = async (req, res) => {
 
 
 
-exports.verifyOTP = async (req, res)=>{
-    const data = req.body
-    console.log(data)
-}
+exports.verifyOTP = async (req, res) => {
+  const data = req.body;
+  console.log('Received OTP:', data.otp);
+
+  if (!data.otp) {
+    return res.status(400).json({ message: 'OTP is required' });
+  }
+
+  // Just a placeholder for OTP validation logic
+  // For now, assume OTP is always '123456' for testing
+
+  if (data.otp === '123456') {
+    return res.status(200).json({ message: 'OTP verified successfully' });
+  } else {
+    return res.status(400).json({ message: 'Invalid OTP' });
+  }
+};
