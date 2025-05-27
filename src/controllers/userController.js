@@ -4,6 +4,7 @@ const session = require("express-session")
 const transporter = require('../config/mailer');
 
 
+
 function generateOTP() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
@@ -139,3 +140,25 @@ exports.verifyOTP = async (req, res) => {
     return res.status(401).json({ message: 'Invalid OTP' });
   }
 };
+
+
+exports.updatePassword = async (req, res)=>{
+
+  console.log("This is Update request")
+  const {password} = req.body;
+  console.log(password);
+  console.log(req.session.email)
+
+  if(!req.session.otpVerified || !req.session.email){
+    return res.status(403).json({ message: "Unauthorized or session expired" });
+  }
+  const hashedPassword = await bcrypt.hash(password, 10);
+  await db.collection('user-signup').updateOne(
+    { email: req.session.email },                      
+    { $set: { password: hashedPassword } }   
+  );
+
+  // req.session.otpVerified = null;
+  // req.session.email = null;
+  res.status(201).json({ message: "Password updated successfully" });
+}
