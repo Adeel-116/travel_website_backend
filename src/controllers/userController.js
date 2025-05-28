@@ -111,33 +111,34 @@ exports.verifyEmail = async (req, res) => {
 
 
 exports.verifyOTP = async (req, res) => {
+  try {
+    const { otp } = req.body;
 
-  console.log("This is verify Route")
-  const {otp} = req.body;
-  console.log('Received OTP:', otp);
+    if (!otp) {
+      return res.status(400).json({ message: 'OTP is required' });
+    }
 
-  console.log("This is session OTP ", req.session.otp)
+    if (!req.session.otp || !req.session.otpExpires) {
+      return res.status(404).json({ message: 'OTP not found or expired. Please request again.' });
+    }
 
-  if (!otp) {
-    return res.status(400).json({ message: 'OTP is required' });
-  }
+    if (Date.now() > req.session.otpExpires) {
+      return res.status(410).json({ message: 'OTP has expired. Please request again.' });
+    }
 
-  if (!req.session.otp || !req.session.otpExpires) {
-    return res.status(404).json({ message: "OTP not found or expired. Please request again." });
-  }
+    if (otp === req.session.otp) {
+      req.session.otpVerified = true;
+      req.session.otp = null;
+      req.session.otpExpires = null;
 
-  if (Date.now() > req.session.otpExpires) {
-    return res.status(410).json({ message: "OTP has expired. Please request again." });
-  }
+      return res.status(200).json({ message: 'OTP verified successfully' });
+    }
 
-  if (otp === req.session.otp) {
-    req.session.isVerified = true;
-    req.session.otp = null;
-    req.session.otpExpires = null;
-
-    return res.status(200).json({ message: 'OTP verified successfully' });
-  } else {
     return res.status(401).json({ message: 'Invalid OTP' });
+
+  } catch (error) {
+    console.error("Error in verifyOTP:", error);
+    res.status(500).json({ message: 'Internal server error' });
   }
 };
 
@@ -148,11 +149,14 @@ exports.updatePassword = async (req, res)=>{
   const {password} = req.body;
   console.log(password);
   console.log(req.session.email)
+  console.log("OTP Verified:", req.session.otpVerified);
 
   if(!req.session.otpVerified || !req.session.email){
     return res.status(403).json({ message: "Unauthorized or session expired" });
   }
   const hashedPassword = await bcrypt.hash(password, 10);
+  const db = getDB()
+
   await db.collection('user-signup').updateOne(
     { email: req.session.email },                      
     { $set: { password: hashedPassword } }   
