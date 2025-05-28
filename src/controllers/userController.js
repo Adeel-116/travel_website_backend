@@ -1,9 +1,7 @@
 const bcrypt = require("bcrypt");
 const { getDB } = require("../config/db");
-const session = require("express-session")
-const transporter = require('../config/mailer');
-
-
+const session = require("express-session");
+const transporter = require("../config/mailer");
 
 function generateOTP() {
   return Math.floor(100000 + Math.random() * 900000).toString();
@@ -46,25 +44,7 @@ exports.login = async (req, res) => {
     if (!isMatch)
       return res.status(401).json({ message: "Incorrect password" });
 
-    // const token = jwtToken.sign(
-    //   {
-    //     id: user._id,
-    //     email: user.email,
-    //     firstName: user.firstName,
-    //   },
-    //   process.env.JWT_SECRET,
-    //   { expiresIn: "1h" }
-    // );
-
-    // res.cookie('token', token, {
-    // httpOnly: true,
-    // secure: false,
-    // sameSite: 'Lax',
-    // maxAge: 1000 * 60 * 60, 
-    // });
-
     return res.status(200).json({ message: "User logged in successfully" });
-    
   } catch (error) {
     return res
       .status(500)
@@ -75,7 +55,6 @@ exports.login = async (req, res) => {
 exports.verifyEmail = async (req, res) => {
   try {
     const { email } = req.body;
-    console.log(email)
     const db = getDB();
     const user = await db.collection("user-signup").findOne({ email });
     if (!user) return res.status(404).json({ message: "User not found" });
@@ -85,45 +64,47 @@ exports.verifyEmail = async (req, res) => {
     const mailOptions = {
       from: process.env.EMAIL_USER,
       to: email,
-      subject: 'Your OTP password is:',
+      subject: "Your OTP password is:",
       text: `Your OTP code is: ${otp}`,
     };
 
     try {
       await transporter.sendMail(mailOptions);
 
-      // 
+      //
       req.session.otp = otp;
       req.session.email = email;
-      req.session.otpExpires= Date.now() + 5 * 60 * 1000;
+      req.session.otpExpires = Date.now() + 5 * 60 * 1000;
 
-      res.status(200).send({ message: 'OTP sent successfully' });
+      res.status(200).send({ message: "OTP sent successfully" });
     } catch (error) {
       console.error(error);
-      res.status(502).send({ message: 'Error sending OTP' });
+      res.status(502).send({ message: "Error sending OTP" });
     }
   } catch (error) {
-    console.error('Error in /verify-email:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error("Error in /verify-email:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };
-
-
 
 exports.verifyOTP = async (req, res) => {
   try {
     const { otp } = req.body;
 
     if (!otp) {
-      return res.status(400).json({ message: 'OTP is required' });
+      return res.status(400).json({ message: "OTP is required" });
     }
 
     if (!req.session.otp || !req.session.otpExpires) {
-      return res.status(404).json({ message: 'OTP not found or expired. Please request again.' });
+      return res
+        .status(404)
+        .json({ message: "OTP not found or expired. Please request again." });
     }
 
     if (Date.now() > req.session.otpExpires) {
-      return res.status(410).json({ message: 'OTP has expired. Please request again.' });
+      return res
+        .status(410)
+        .json({ message: "OTP has expired. Please request again." });
     }
 
     if (otp === req.session.otp) {
@@ -131,38 +112,41 @@ exports.verifyOTP = async (req, res) => {
       req.session.otp = null;
       req.session.otpExpires = null;
 
-      return res.status(200).json({ message: 'OTP verified successfully' });
+      return res.status(200).json({ message: "OTP verified successfully" });
     }
 
-    return res.status(401).json({ message: 'Invalid OTP' });
-
+    return res.status(401).json({ message: "Invalid OTP" });
   } catch (error) {
     console.error("Error in verifyOTP:", error);
-    res.status(500).json({ message: 'Internal server error' });
+    res.status(500).json({ message: "Internal server error" });
   }
 };
 
+exports.updatePassword = async (req, res) => {
+  try {
+    const { password } = req.body;
+    if (!req.session.otpVerified || !req.session.email) {
+      return res
+        .status(403)
+        .json({ message: "Unauthorized or session expired" });
+    }
 
-exports.updatePassword = async (req, res)=>{
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const db = getDB();
 
-  console.log("This is Update request")
-  const {password} = req.body;
-  console.log(password);
-  console.log(req.session.email)
-  console.log("OTP Verified:", req.session.otpVerified);
+    await db
+      .collection("user-signup")
+      .updateOne(
+        { email: req.session.email },
+        { $set: { password: hashedPassword } }
+      );
 
-  if(!req.session.otpVerified || !req.session.email){
-    return res.status(403).json({ message: "Unauthorized or session expired" });
+    req.session.otpVerified = null;
+    req.session.email = null;
+
+    res.status(201).json({ message: "Password updated successfully" });
+  } catch (error) {
+    console.error("Error updating password:", error);
+    res.status(500).json({ message: "Internal Server Error" });
   }
-  const hashedPassword = await bcrypt.hash(password, 10);
-  const db = getDB()
-
-  await db.collection('user-signup').updateOne(
-    { email: req.session.email },                      
-    { $set: { password: hashedPassword } }   
-  );
-
-  // req.session.otpVerified = null;
-  // req.session.email = null;
-  res.status(201).json({ message: "Password updated successfully" });
-}
+};
